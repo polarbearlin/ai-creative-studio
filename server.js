@@ -508,6 +508,20 @@ app.post('/api/generate-video', async (req, res) => {
     }
 });
 
+// Serve Static Frontend (Vite Build)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+app.use(express.static(join(__dirname, 'dist')));
+
+// SPA Catch-all: Send index.html for any unknown route
+app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+        return next();
+    }
+    res.sendFile(join(__dirname, 'dist', 'index.html'));
+});
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
