@@ -27,7 +27,8 @@ import clsx from 'clsx';
 import axios from 'axios';
 import InfiniteCanvas from './components/InfiniteCanvas';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+// Smart API URL: Relative for Prod (Same Origin), Localhost:3002 for Dev
+const API_BASE_URL = import.meta.env.PROD ? '' : 'http://localhost:3002';
 
 function App() {
   /* State */

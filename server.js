@@ -14,7 +14,7 @@ import rateLimit from 'express-rate-limit';
 dotenv.config();
 
 const app = express();
-const PORT = 3001;
+const PORT = 3002;
 
 // Rate Limiting: 100 requests per 15 minutes
 const limiter = rateLimit({

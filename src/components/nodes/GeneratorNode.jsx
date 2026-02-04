@@ -32,7 +32,8 @@ export default function GeneratorNode({ id, data }) {
             };
 
 
-            const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+            // Smart API URL
+            const API_BASE_URL = import.meta.env.PROD ? '' : 'http://localhost:3002';
             const res = await axios.post(`${API_BASE_URL}${endpoint}`, payload);
 
             const resultUrl = isVideo ? res.data.videoUrl : (res.data.urls ? res.data.urls[0] : res.data.url);
