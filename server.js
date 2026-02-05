@@ -332,7 +332,8 @@ async function generateWithGoogleImagen(res, prompt, aspectRatio, modelName, num
         }
 
         if (!data.predictions || data.predictions.length === 0) {
-            throw new Error("No image data returned from Google API");
+            console.error("[Google] Raw Response for missing predictions:", JSON.stringify(data, null, 2));
+            throw new Error("No image data returned from Google API. Check server logs for details.");
         }
 
         // Handle multiple images
