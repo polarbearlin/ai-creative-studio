@@ -54,8 +54,8 @@ app.post('/api/generate', async (req, res) => {
         console.log(`[Replicate] Generating with ${model}: ${prompt.substring(0, 50)}...`);
         if (image) console.log(`[Replicate] Image input provided (${image.substring(0, 20)}...)`);
 
-        // ROUTING: Google Imagen Models
-        if (model.includes('imagen')) {
+        // ROUTING: Google Imagen Models (including Nano Banana Pro and Gemini Image)
+        if (model.includes('imagen') || model.includes('banana') || model.includes('gemini-3-pro-image')) {
             return generateWithGoogleImagen(res, prompt, aspectRatio, model, numOutputs, resolution);
         }
 
