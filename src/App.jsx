@@ -863,8 +863,8 @@ function CanvasView({
             {/* Inline Image Preview */}
             {uploadedImage && (
               <div className="px-4 pt-4 pb-0 flex items-start gap-4">
-                <div className="relative group/preview rounded-lg overflow-hidden border border-white/10 w-20 h-20 shrink-0">
-                  <img src={uploadedImage} alt="Reference" className="w-full h-full object-cover" />
+                <div className="relative group/preview rounded-lg overflow-hidden border border-white/10 h-32 w-auto shrink-0 bg-black/40">
+                  <img src={uploadedImage} alt="Reference" className="w-auto h-full object-contain" />
                   <button
                     onClick={() => setUploadedImage(null)}
                     className="absolute inset-0 bg-black/50 opacity-0 group-hover/preview:opacity-100 flex items-center justify-center text-white transition-opacity"
