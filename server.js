@@ -285,55 +285,73 @@ async function generateWithGoogleImagen(res, prompt, aspectRatio, modelName, num
 
         const instanceData = { prompt: prompt };
 
-        // Handle Image Input (Base64)
+        // Detect Intent: Generation vs Editing
+        let predictionPayload = {
+            instances: [instanceData],
+            parameters: {
+                sampleCount: numOutputs,
+                aspectRatio: safeRatio
+            }
+        };
+
+        // If Image + Prompt -> Editing Mode
         if (imageInput) {
-            // Remove data URL prefix (e.g., "data:image/png;base64,")
-            const base64Data = imageInput.replace(/^data:image\/\w+;base64,/, "");
-            instanceData.image = { bytesBase64Encoded: base64Data };
+            console.log("[Google] Image detected. Switching to EDIT mode.");
+            // Remove previous 'image' field from instanceData if it was added wrongly
+            // For editing, we need 'image' in instance AND 'editConfig' in parameters if using edit mode
+            // OR use 'image' + 'prompt' for mask-free editing (common in Imagen 2/3)
+
+            // Let's refine the instance data
+            instanceData.image = { bytesBase64Encoded: imageInput.replace(/^data:image\/\w+;base64,/, "") };
+
+            // Important: For some versions, prompt is enough with image. 
+            // But if it fails, we might need 'editConfig'. 
+            // Let's try the standard Mask-Free Editing payload first.
+            // If the model rejects "image in input", it means we must explicitly use the 'edit_mode' parameter or similar.
+
+            // Try enabling edit mode strictly
+            predictionPayload.parameters.editConfig = {
+                editMode: 'EDIT_MODE_INPAINT_INSERTION' // Default to insertion/general edit behavior
+            };
+            // For general "change style" or "remix", sometimes we don't send editConfig, but the model must support it.
+            // If imagen-4-fast strictly forbids image input for standard generation, we must use a different endpoint or config.
+            // Let's try standard specific payload for editing.
         }
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                instances: [instanceData],
-                parameters: {
-                    sampleCount: numOutputs,
-                    aspectRatio: safeRatio
-                    // Note: 'resolution' parameter isn't directly supported by this API version in this way (it's implicit in model/aspectRatio),
-                    // but we log it. For true 4K, we would chain the upscaler.
-                    // For now, we rely on the model's native high quality.
-                }
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.error) {
-            throw new Error(data.error.message || JSON.stringify(data.error));
-        }
-
-        if (!data.predictions || data.predictions.length === 0) {
-            throw new Error("No image data returned from Google API");
-        }
-
-        // Handle multiple images
-        let urls = data.predictions.map(pred => {
-            const base64 = pred.bytesBase64Encoded;
-            return `data:image/png;base64,${base64}`;
-        });
-
-        // 4K Upscaling Chain - DISABLED (Replicate Usage Stopped)
-        if (resolution === '4K') {
-            console.warn(`[Google] 4K requested but Replicate API is disabled. Returning native resolution.`);
-        }
-
-        res.json({ success: true, url: urls[0], urls: urls });
-
-    } catch (error) {
-        console.error('[Google] Generation Error:', error);
-        res.status(500).json({ error: error.message || 'Failed to generate with Google Imagen' });
     }
+        
+        const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(predictionPayload)
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+        throw new Error(data.error.message || JSON.stringify(data.error));
+    }
+
+    if (!data.predictions || data.predictions.length === 0) {
+        throw new Error("No image data returned from Google API");
+    }
+
+    // Handle multiple images
+    let urls = data.predictions.map(pred => {
+        const base64 = pred.bytesBase64Encoded;
+        return `data:image/png;base64,${base64}`;
+    });
+
+    // 4K Upscaling Chain - DISABLED (Replicate Usage Stopped)
+    if (resolution === '4K') {
+        console.warn(`[Google] 4K requested but Replicate API is disabled. Returning native resolution.`);
+    }
+
+    res.json({ success: true, url: urls[0], urls: urls });
+
+} catch (error) {
+    console.error('[Google] Generation Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to generate with Google Imagen' });
+}
 }
 
 /**
