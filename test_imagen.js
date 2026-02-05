@@ -1,6 +1,7 @@
+import 'dotenv/config'; // Load .env file
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI("AIzaSyDkOgyk1i_oDIYLz1GCtlRwtxRczh-NmTk");
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
 async function testImagen() {
     try {
@@ -28,7 +29,7 @@ async function testImagen() {
 
 async function testRestApi() {
     // Fallback to raw fetch for 'predict' method
-    const apiKey = "AIzaSyDkOgyk1i_oDIYLz1GCtlRwtxRczh-NmTk";
+    const apiKey = process.env.GOOGLE_API_KEY;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
 
     const body = {

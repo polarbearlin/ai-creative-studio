@@ -7,7 +7,11 @@ import multer from 'multer';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, extname, basename } from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 import rateLimit from 'express-rate-limit';
 
@@ -39,9 +43,14 @@ const upload = multer({ dest: 'uploads/' });
 if (!fs.existsSync('uploads')) {
     fs.mkdirSync('uploads');
 }
+if (!fs.existsSync('frames')) {
+    fs.mkdirSync('frames');
+}
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
+app.use('/uploads', express.static('uploads'));
+app.use('/frames', express.static('frames'));
 
 app.post('/api/generate', async (req, res) => {
     try {
@@ -56,7 +65,7 @@ app.post('/api/generate', async (req, res) => {
 
         // ROUTING: Google Imagen Models (including Nano Banana Pro and Gemini Image)
         if (model.includes('imagen') || model.includes('banana') || model.includes('gemini-3-pro-image')) {
-            return generateWithGoogleImagen(res, prompt, aspectRatio, model, numOutputs, resolution);
+            return generateWithGoogleImagen(res, prompt, aspectRatio, model, numOutputs, resolution, image);
         }
 
         // Flux-schnell on Replicate often doesn't accept image inputs.
@@ -256,8 +265,10 @@ app.post('/api/enhance-prompt', async (req, res) => {
 
 
 // Helper Function for Google Imagen
-async function generateWithGoogleImagen(res, prompt, aspectRatio, modelName, numOutputs = 1, resolution = '1K') {
+async function generateWithGoogleImagen(res, prompt, aspectRatio, modelName, numOutputs = 1, resolution = '1K', imageInput = null) {
     console.log(`[Google] Generating ${numOutputs} image(s) with ${modelName} at ${resolution}...`);
+    if (imageInput) console.log(`[Google] Image input detected for editing/variation.`);
+
     try {
         const apiKey = process.env.GOOGLE_API_KEY;
         const url = `https://generativelanguage.googleapis.com/v1beta/${modelName}:predict?key=${apiKey}`;
@@ -272,11 +283,20 @@ async function generateWithGoogleImagen(res, prompt, aspectRatio, modelName, num
         };
         const safeRatio = ratioMap[aspectRatio] || "1:1";
 
+        const instanceData = { prompt: prompt };
+
+        // Handle Image Input (Base64)
+        if (imageInput) {
+            // Remove data URL prefix (e.g., "data:image/png;base64,")
+            const base64Data = imageInput.replace(/^data:image\/\w+;base64,/, "");
+            instanceData.image = { bytesBase64Encoded: base64Data };
+        }
+
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                instances: [{ prompt: prompt }],
+                instances: [instanceData],
                 parameters: {
                     sampleCount: numOutputs,
                     aspectRatio: safeRatio
@@ -377,16 +397,61 @@ app.post('/api/analyze-video', upload.single('video'), async (req, res) => {
 
         console.log(`[Video] Analysis complete: ${scenes.length} scenes found.`);
 
-        // Clean up local temp file
-        fs.unlinkSync(req.file.path);
+        // Clean up local temp file - DISABLED for Frame Extraction
+        // fs.unlinkSync(req.file.path);
 
-        res.json({ success: true, scenes: scenes });
+        // Return relative path for frontend to access (Note: this needs static serving setup)
+        const videoFilename = req.file.filename;
+
+        res.json({ success: true, scenes: scenes, videoFilename: videoFilename });
 
     } catch (error) {
         console.error('[Video] Analysis Error:', error);
-        // Clean up local file on error too
+        // Clean up local file on error ONLY
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         res.status(500).json({ error: error.message || 'Failed to analyze video' });
+    }
+});
+
+/**
+ * Extract Frame from Video using ffmpeg
+ */
+app.post('/api/extract-frame', async (req, res) => {
+    try {
+        const { videoFilename, timestamp } = req.body;
+        if (!videoFilename || !timestamp) {
+            return res.status(400).json({ error: 'Missing videoFilename or timestamp' });
+        }
+
+        const videoPath = join(__dirname, 'uploads', videoFilename);
+        if (!fs.existsSync(videoPath)) {
+            return res.status(404).json({ error: 'Video file not found on server' });
+        }
+
+        // Convert timestamp (MM:SS) to seconds or keep as HH:MM:SS for ffmpeg
+        // FFmpeg accepts "00:05" directly.
+
+        const frameFilename = `${videoFilename}_${timestamp.replace(/:/g, '-')}.jpg`;
+        const framePath = join(__dirname, 'frames', frameFilename);
+
+        // Check if frame already exists
+        if (fs.existsSync(framePath)) {
+            return res.json({ success: true, url: `/frames/${frameFilename}` });
+        }
+
+        console.log(`[FFmpeg] Extracting frame at ${timestamp} from ${videoFilename}...`);
+
+        // Command: ffmpeg -ss 00:05 -i video.mp4 -frames:v 1 -q:v 2 output.jpg -y
+        const cmd = `ffmpeg -ss ${timestamp} -i "${videoPath}" -frames:v 1 -q:v 2 "${framePath}" -y`;
+
+        await execAsync(cmd);
+
+        console.log(`[FFmpeg] Frame saved to ${framePath}`);
+        res.json({ success: true, url: `/frames/${frameFilename}` });
+
+    } catch (error) {
+        console.error('[FFmpeg] Error:', error);
+        res.status(500).json({ error: 'Failed to extract frame' });
     }
 });
 

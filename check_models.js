@@ -1,11 +1,12 @@
+import 'dotenv/config';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI("AIzaSyDkOgyk1i_oDIYLz1GCtlRwtxRczh-NmTk");
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
 async function listModels() {
     try {
         const response = await fetch(
-            "https://generativelanguage.googleapis.com/v1beta/models?key=AIzaSyDkOgyk1i_oDIYLz1GCtlRwtxRczh-NmTk"
+            `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GOOGLE_API_KEY}`
         );
         const data = await response.json();
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Palette,
@@ -319,6 +319,8 @@ function App() {
                   setSeed={setSeed}
                   activeModel={activeModel}
                   history={history}
+                  uploadedImage={uploadedImage}
+                  setUploadedImage={setUploadedImage}
                 />
               )}
               {activeTab === 'gallery' && <PlaceholderView title="Gallery" icon={<LayoutGrid size={48} />} />}
@@ -746,9 +748,23 @@ function CanvasView({
   seed,
   setSeed,
   activeModel,
-  history
+  history,
+  uploadedImage,
+  setUploadedImage
 }) {
   const [isEnhancing, setIsEnhancing] = useState(false);
+  const fileInputRef = useRef(null); // Ref for hidden file input
+
+  const handleInlineUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) { alert("Please upload an image file."); return; }
+      if (file.size > 10 * 1024 * 1024) { alert("Max 10MB"); return; }
+      const reader = new FileReader();
+      reader.onloadend = () => setUploadedImage(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
 
   const downloadImage = async () => {
     if (!image) return;
@@ -841,144 +857,163 @@ function CanvasView({
         {/* Input Box */}
         <div className={clsx("w-full relative group transition-all duration-500", image ? "order-last" : "")}>
           <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/50 to-purple-500/50 rounded-2xl opacity-20 group-hover:opacity-100 transition duration-500 blur"></div>
-          <div className="relative bg-surface border border-border rounded-2xl p-2 flex flex-col gap-2 shadow-2xl">
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  generateImage();
-                }
-              }}
-              placeholder="A futuristic city with neons, cinematic lighting..."
-              className={clsx(
-                "flex-1 bg-transparent border-none outline-none resize-none p-4 text-lg placeholder:text-muted/30 h-32 md:h-24 transition-opacity",
-                isEnhancing ? "opacity-50" : "opacity-100"
-              )}
-              disabled={isEnhancing}
-            />
 
-            {/* Magic Enhance Overlay */}
-            {isEnhancing && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="flex items-center gap-2 text-purple-400 font-mono text-sm animate-pulse bg-black/50 px-3 py-1 rounded-full backdrop-blur">
-                  <Sparkles size={14} />
-                  <span>Magic enhancing...</span>
+          <div className="relative bg-surface border border-border rounded-2xl flex flex-col shadow-2xl overflow-hidden">
+
+            {/* Inline Image Preview */}
+            {uploadedImage && (
+              <div className="px-4 pt-4 pb-0 flex items-start gap-4">
+                <div className="relative group/preview rounded-lg overflow-hidden border border-white/10 w-20 h-20 shrink-0">
+                  <img src={uploadedImage} alt="Reference" className="w-full h-full object-cover" />
+                  <button
+                    onClick={() => setUploadedImage(null)}
+                    className="absolute inset-0 bg-black/50 opacity-0 group-hover/preview:opacity-100 flex items-center justify-center text-white transition-opacity"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="text-xs text-muted py-2">
+                  <p className="font-bold text-primary mb-1">Image Reference Active</p>
+                  <p>Model will follow this image structure.</p>
                 </div>
               </div>
             )}
 
-            <div className="flex justify-between items-end p-2 border-t border-white/5 pt-2">
-              <div className="flex gap-2">
+            <div className="flex flex-col md:flex-row">
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    generateImage();
+                  }
+                }}
+                placeholder="Describe your imagination... (or upload an image to edit)"
+                className={clsx(
+                  "flex-1 bg-transparent border-none outline-none resize-none p-4 text-lg placeholder:text-muted/30 min-h-[100px] transition-opacity",
+                  isEnhancing ? "opacity-50" : "opacity-100"
+                )}
+                disabled={isEnhancing}
+              />
+
+              {/* Toolbar inside Input */}
+              <div className="flex md:flex-col items-center justify-between p-2 gap-2 bg-black/5 border-t md:border-t-0 md:border-l border-border">
+                <div className="flex gap-2">
+                  {/* Upload Button */}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className={clsx("p-2 rounded-lg transition-colors tooltip-trigger", uploadedImage ? "bg-primary/20 text-primary" : "text-muted hover:bg-white/10 hover:text-foreground")}
+                    title="Upload Image Reference"
+                  >
+                    <ImageIcon size={20} />
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleInlineUpload}
+                  />
+
+                  <button onClick={enhancePrompt} className="p-2 text-muted hover:bg-white/10 hover:text-purple-400 rounded-lg transition-colors" title="AI Enhance Prompt">
+                    <Sparkles size={20} />
+                  </button>
+                </div>
+
                 <button
-                  onClick={enhancePrompt}
-                  disabled={!prompt || isEnhancing}
-                  className={clsx(
-                    "p-2 rounded-lg transition-colors flex items-center gap-2",
-                    (!prompt || isEnhancing) ? "text-muted/50 cursor-not-allowed" : "text-purple-400 hover:bg-purple-500/10 hover:text-purple-300"
-                  )}
-                  title="Magic Enhance"
+                  onClick={generateImage}
+                  disabled={loading || isEnhancing || (!prompt && !uploadedImage)}
+                  className="px-6 py-2 md:w-full md:aspect-square md:p-0 rounded-xl bg-primary text-primary-foreground font-bold hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center shadow-lg shadow-primary/20"
                 >
-                  <Wand2 size={18} />
-                  <span className="text-xs font-medium">Enhance</span>
-                </button>
-                <button className="p-2 rounded-lg hover:bg-white/5 text-muted hover:text-foreground transition-colors" title="Settings">
-                  <Settings size={18} />
-                </button>
-                <button className="p-2 rounded-lg hover:bg-white/5 text-muted hover:text-foreground transition-colors" title="Seed">
-                  <span className="text-xs font-mono opacity-50">SEED: {seed}</span>
+                  {loading ? <Loader2 size={24} className="animate-spin" /> : <ArrowRight size={24} />}
                 </button>
               </div>
-              <button
-                onClick={generateImage}
-                disabled={loading || !prompt || isEnhancing}
-                className="px-6 py-2 rounded-xl bg-primary hover:bg-primaryHover disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold transition-all shadow-lg hover:shadow-primary/20 flex items-center gap-2"
-              >
-                {loading ? (
-                  <span>Generating...</span>
-                ) : (
-                  <>
-                    <span>Generate</span>
-                    <Zap size={16} fill="currentColor" />
-                  </>
-                )}
-              </button>
             </div>
+
+            {/* Magic Enhance Overlay */}
+            {isEnhancing && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                <div className="flex items-center gap-2 text-purple-400 font-mono text-sm animate-pulse bg-black/80 px-4 py-2 rounded-full backdrop-blur border border-purple-500/30">
+                  <Sparkles size={16} />
+                  <span>Magic enhancing...</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Result View */}
-        <AnimatePresence mode="wait">
-          {(image || loading) && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="w-full aspect-video rounded-2xl bg-black/40 border border-border overflow-hidden relative group"
-            >
-              {loading && (
-                /* ... loading ... */
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-                  <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-                  <div className="font-mono text-xs text-primary/80 animate-pulse">
-                    Processing...
-                  </div>
-                  <div className="text-[10px] text-muted max-w-sm text-center px-4">
-                    {logs.slice(-1)[0]}
-                  </div>
-                </div>
-              )}
-              {activeMode === 'video' && videoUrl ? (
-                <>
-                  <video
-                    src={videoUrl}
-                    controls
-                    autoPlay
-                    loop
-                    className="w-full h-full object-contain"
-                  />
-                  {/* Video Toolbar */}
-                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <a
-                      href={videoUrl}
-                      download={`veo-generation-${Date.now()}.mp4`}
-                      className="p-2 rounded-full bg-black/50 backdrop-blur text-white hover:bg-black/80 transition-colors border border-white/10"
-                      title="Download Video"
-                    >
-                      <Download size={16} />
-                    </a>
-                  </div>
-                </>
-              ) : image ? (
-                <>
-                  <img src={image} alt="Generated" className="w-full h-full object-contain" />
-
-                  {/* Image Toolbar Overlay */}
-                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={upscaleImage}
-                      className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-white hover:bg-black/80 transition-colors flex items-center gap-2 text-xs font-medium border border-white/10"
-                      title="Upscale 4K"
-                    >
-                      <Maximize2 size={14} />
-                      <span>Upscale 4K</span>
-                    </button>
-                    <button
-                      onClick={downloadImage}
-                      className="p-2 rounded-full bg-black/50 backdrop-blur text-white hover:bg-black/80 transition-colors border border-white/10"
-                      title="Download"
-                    >
-                      <Download size={16} />
-                    </button>
-                  </div>
-                </>
-              ) : null}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
       </div>
+
+      {/* Result View */}
+      < AnimatePresence mode="wait" >
+        {(image || loading) && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="w-full aspect-video rounded-2xl bg-black/40 border border-border overflow-hidden relative group"
+          >
+            {loading && (
+              /* ... loading ... */
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+                <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                <div className="font-mono text-xs text-primary/80 animate-pulse">
+                  Processing...
+                </div>
+                <div className="text-[10px] text-muted max-w-sm text-center px-4">
+                  {logs.slice(-1)[0]}
+                </div>
+              </div>
+            )}
+            {activeMode === 'video' && videoUrl ? (
+              <>
+                <video
+                  src={videoUrl}
+                  controls
+                  autoPlay
+                  loop
+                  className="w-full h-full object-contain"
+                />
+                {/* Video Toolbar */}
+                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <a
+                    href={videoUrl}
+                    download={`veo-generation-${Date.now()}.mp4`}
+                    className="p-2 rounded-full bg-black/50 backdrop-blur text-white hover:bg-black/80 transition-colors border border-white/10"
+                    title="Download Video"
+                  >
+                    <Download size={16} />
+                  </a>
+                </div>
+              </>
+            ) : image ? (
+              <>
+                <img src={image} alt="Generated" className="w-full h-full object-contain" />
+
+                {/* Image Toolbar Overlay */}
+                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={upscaleImage}
+                    className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-white hover:bg-black/80 transition-colors flex items-center gap-2 text-xs font-medium border border-white/10"
+                    title="Upscale 4K"
+                  >
+                    <Maximize2 size={14} />
+                    <span>Upscale 4K</span>
+                  </button>
+                  <button
+                    onClick={downloadImage}
+                    className="p-2 rounded-full bg-black/50 backdrop-blur text-white hover:bg-black/80 transition-colors border border-white/10"
+                    title="Download"
+                  >
+                    <Download size={16} />
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </motion.div>
+        )
+        }
+      </AnimatePresence>
 
       {/* Filmstrip / Gallery Bar - Fixed at Bottom */}
       {history.length > 0 && (
@@ -1012,7 +1047,7 @@ function CanvasView({
         </div>
       )}
     </div>
-  )
+  );
 }
 
 /* Video Analysis Component */
@@ -1023,6 +1058,8 @@ function VideoLabView({ setPrompt, setActiveTab }) {
   const [error, setError] = useState(null);
   const [generatingScene, setGeneratingScene] = useState(null); // Track which scene is generating
   const [generatedImages, setGeneratedImages] = useState({}); // Store generated images by scene index
+  const [extractedFrames, setExtractedFrames] = useState({}); // Store extracted true frames
+  const [currentVideoFilename, setCurrentVideoFilename] = useState(null); // To store filename from server
 
   const handleFileChange = (e) => {
     if (e.target.files[0]) {
@@ -1030,6 +1067,8 @@ function VideoLabView({ setPrompt, setActiveTab }) {
       setScenes([]);
       setError(null);
       setGeneratedImages({});
+      setExtractedFrames({});
+      setCurrentVideoFilename(null);
     }
   };
 
@@ -1048,12 +1087,32 @@ function VideoLabView({ setPrompt, setActiveTab }) {
       });
       if (res.data.success) {
         setScenes(res.data.scenes);
+        setCurrentVideoFilename(res.data.videoFilename);
+
+        // Auto-extract frames
+        res.data.scenes.forEach((scene, idx) => {
+          extractFrame(res.data.videoFilename, scene.time, idx);
+        });
       }
     } catch (err) {
       setError(err.response?.data?.error || "Analysis failed.");
       console.error(err);
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const extractFrame = async (filename, timestamp, idx) => {
+    try {
+      const res = await axios.post(`${API_BASE_URL}/api/extract-frame`, {
+        videoFilename: filename,
+        timestamp: timestamp
+      });
+      if (res.data.success) {
+        setExtractedFrames(prev => ({ ...prev, [idx]: `${API_BASE_URL}${res.data.url}` }));
+      }
+    } catch (err) {
+      console.error("Frame extraction failed for", timestamp, err);
     }
   };
 
@@ -1194,7 +1253,7 @@ function VideoLabView({ setPrompt, setActiveTab }) {
               导出 JSON
             </button>
             <span className="ml-auto text-sm text-muted self-center">
-              已分析 {scenes.length} 个场景 · 已生成 {Object.keys(generatedImages).length} 张图片
+              已分析 {scenes.length} 个场景 · 原片帧 {Object.keys(extractedFrames).length} · AI绘图 {Object.keys(generatedImages).length}
             </span>
           </div>
 
@@ -1212,7 +1271,30 @@ function VideoLabView({ setPrompt, setActiveTab }) {
                   </div>
 
                   {/* Full Description & Cards */}
-                  <div className="grid lg:grid-cols-2 gap-6">
+                  <div className="grid lg:grid-cols-3 gap-6">
+                    {/* Real Frame Card */}
+                    <div className="p-0 rounded-2xl bg-surface border border-border overflow-hidden group hover:border-blue-500/50 transition-all shadow-sm hover:shadow-md">
+                      <div className="p-4 border-b border-border bg-black/5 dark:bg-white/5 flex justify-between items-center">
+                        <div className="flex items-center gap-2 text-blue-500">
+                          <Video size={16} />
+                          <span className="text-xs font-bold uppercase tracking-wider">Original Frame</span>
+                        </div>
+                        <span className="text-xs font-mono opacity-50">{scene.time}</span>
+                      </div>
+                      {extractedFrames[idx] ? (
+                        <div className="p-0">
+                          <img src={extractedFrames[idx]} alt={`Frame ${scene.time}`} className="w-full h-48 object-cover hover:scale-105 transition-transform duration-500" />
+                        </div>
+                      ) : (
+                        <div className="h-48 flex items-center justify-center text-muted text-xs animate-pulse">
+                          Extracting Frame...
+                        </div>
+                      )}
+                      <div className="p-4 bg-surface/50">
+                        <p className="text-xs text-muted leading-relaxed line-clamp-3">{scene.description}</p>
+                      </div>
+                    </div>
+
                     {/* Image Prompt Card */}
                     <div className="p-0 rounded-2xl bg-surface border border-border overflow-hidden group hover:border-purple-500/50 transition-all shadow-sm hover:shadow-md">
                       <div className="p-4 border-b border-border bg-black/5 dark:bg-white/5 flex justify-between items-center">
@@ -1235,8 +1317,8 @@ function VideoLabView({ setPrompt, setActiveTab }) {
                       </div>
                       {/* Generated Image Preview */}
                       {generatedImages[idx] && (
-                        <div className="p-2 border-b border-border">
-                          <img src={generatedImages[idx]} alt={`Scene ${idx + 1}`} className="w-full h-32 object-cover rounded-lg" />
+                        <div className="p-0 border-b border-border">
+                          <img src={generatedImages[idx]} alt={`Scene ${idx + 1}`} className="w-full h-48 object-cover" />
                         </div>
                       )}
                       <div className="p-5">
