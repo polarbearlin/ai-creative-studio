@@ -288,7 +288,10 @@ async function fetchWithRetry(url, options, retries = 3, delay = 1000) {
 // Helper Function for Google Imagen
 async function generateWithGoogleImagen(res, prompt, aspectRatio, modelName, numOutputs = 1, resolution = '1K', imageInput = null) {
     console.log(`[Google] Generating ${numOutputs} image(s) with ${modelName} at ${resolution}...`);
-    if (imageInput) console.log(`[Google] Image input detected for editing/variation.`);
+    if (imageInput) {
+        console.log(`[Google] Image detected. Force switching to Standard model for editing reliability.`);
+        modelName = 'models/imagen-4.0-generate-001';
+    }
 
     try {
         const apiKey = process.env.GOOGLE_API_KEY;
