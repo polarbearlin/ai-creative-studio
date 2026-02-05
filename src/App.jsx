@@ -210,6 +210,40 @@ function App() {
         </div>
       </aside>
 
+      {/* Mobile Bottom Navigation */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface/95 backdrop-blur-md border-t border-border px-2 py-2 flex justify-around items-center safe-area-pb">
+        <MobileNavButton
+          icon={<Palette size={20} />}
+          label="画布"
+          isActive={activeTab === 'canvas'}
+          onClick={() => setActiveTab('canvas')}
+        />
+        <MobileNavButton
+          icon={<Workflow size={20} />}
+          label="工作流"
+          isActive={activeTab === 'workflow'}
+          onClick={() => setActiveTab('workflow')}
+        />
+        <MobileNavButton
+          icon={<Video size={20} />}
+          label="视频"
+          isActive={activeTab === 'sora'}
+          onClick={() => setActiveTab('sora')}
+        />
+        <MobileNavButton
+          icon={<LayoutGrid size={20} />}
+          label="画廊"
+          isActive={activeTab === 'gallery'}
+          onClick={() => setActiveTab('gallery')}
+        />
+        <MobileNavButton
+          icon={<Settings size={20} />}
+          label="设置"
+          isActive={activeTab === 'settings'}
+          onClick={() => setActiveTab('settings')}
+        />
+      </nav>
+
       {/* Main Content Area */}
       <main className="flex-1 relative overflow-hidden flex flex-col">
         {/* Header */}
@@ -661,6 +695,23 @@ function NavIcon({ icon, label, isActive, onClick }) {
       <span className="absolute left-full ml-4 px-2 py-1 rounded-md bg-surface border border-border text-xs text-foreground opacity-0 -translate-x-2 group-hover:translate-x-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap z-50">
         {label}
       </span>
+    </button>
+  )
+}
+
+function MobileNavButton({ icon, label, isActive, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className={clsx(
+        "flex flex-col items-center justify-center gap-1 px-3 py-1.5 rounded-xl transition-all min-w-[60px]",
+        isActive
+          ? "text-primary bg-primary/10"
+          : "text-muted active:bg-white/5"
+      )}
+    >
+      {icon}
+      <span className="text-[10px] font-medium">{label}</span>
     </button>
   )
 }
