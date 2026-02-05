@@ -167,7 +167,7 @@ function App() {
     <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-primary/30">
 
       {/* Sidebar */}
-      <aside className="w-16 md:w-20 border-r border-border flex flex-col items-center py-6 gap-8 bg-surface/30 backdrop-blur-md z-50">
+      <aside className="hidden sm:flex w-14 md:w-16 lg:w-20 border-r border-border flex-col items-center py-4 md:py-6 gap-6 md:gap-8 bg-surface/30 backdrop-blur-md z-50">
         <div className="p-2 rounded-xl bg-primary/10 text-primary">
           <Zap size={24} strokeWidth={2.5} />
         </div>
@@ -290,21 +290,30 @@ function App() {
 
           {/* Right Control Station (Only for Canvas) */}
           {activeTab === 'canvas' && (
-            <ControlPanel
-              aspectRatio={aspectRatio}
-              setAspectRatio={setAspectRatio}
-              uploadedImage={uploadedImage}
-              setUploadedImage={setUploadedImage}
-              batchSize={batchSize}
-              setBatchSize={setBatchSize}
-              resolution={resolution}
-              setResolution={setResolution}
-              activeModel={activeModel} // Current ID
-              setActiveModel={setActiveModel} // To change model
-              activeMode={activeMode}
-              setActiveMode={switchMode} // Use wrapper
-              availableModels={activeMode === 'video' ? VEO_MODELS : MODELS} // Dynamic list
-            />
+            <>
+              <ControlPanel
+                aspectRatio={aspectRatio}
+                setAspectRatio={setAspectRatio}
+                uploadedImage={uploadedImage}
+                setUploadedImage={setUploadedImage}
+                batchSize={batchSize}
+                setBatchSize={setBatchSize}
+                resolution={resolution}
+                setResolution={setResolution}
+                activeModel={activeModel}
+                setActiveModel={setActiveModel}
+                activeMode={activeMode}
+                setActiveMode={switchMode}
+                availableModels={activeMode === 'video' ? VEO_MODELS : MODELS}
+              />
+              {/* Mobile Controls Toggle */}
+              <MobileControlSheet
+                aspectRatio={aspectRatio}
+                setAspectRatio={setAspectRatio}
+                activeMode={activeMode}
+                setActiveMode={switchMode}
+              />
+            </>
           )}
 
         </div>
@@ -313,7 +322,100 @@ function App() {
   );
 }
 
-// ---------------- Sub Components ----------------
+// ---------------- Mobile Control Sheet ----------------
+
+function MobileControlSheet({ aspectRatio, setAspectRatio, activeMode, setActiveMode }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ratios = [
+    { id: "16:9", label: "Cinema 电影" },
+    { id: "3:2", label: "Photo 照片" },
+    { id: "1:1", label: "Square 方形" },
+    { id: "9:16", label: "Mobile 手机" },
+  ];
+
+  return (
+    <>
+      {/* Floating Toggle Button - Only on Mobile */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="md:hidden fixed bottom-4 right-4 z-50 p-4 rounded-full bg-primary text-black shadow-lg shadow-primary/30 hover:scale-105 active:scale-95 transition-transform"
+      >
+        <Settings size={24} />
+      </button>
+
+      {/* Bottom Sheet */}
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOpen(false)}
+              className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            />
+            {/* Sheet */}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-border rounded-t-3xl p-6 z-50 max-h-[70vh] overflow-y-auto"
+            >
+              {/* Handle */}
+              <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
+
+              {/* Mode Switcher */}
+              <div className="flex bg-black/20 p-1 rounded-xl mb-6">
+                <button
+                  onClick={() => setActiveMode('image')}
+                  className={clsx("flex-1 py-3 rounded-lg text-sm font-medium transition-all", activeMode === 'image' ? "bg-white/10 text-white shadow-sm" : "text-muted")}
+                >
+                  图像 Image
+                </button>
+                <button
+                  onClick={() => setActiveMode('video')}
+                  className={clsx("flex-1 py-3 rounded-lg text-sm font-medium transition-all", activeMode === 'video' ? "bg-purple-500 text-white shadow-sm" : "text-muted")}
+                >
+                  视频 Video
+                </button>
+              </div>
+
+              {/* Aspect Ratio */}
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">画幅 Ratio</h3>
+                <div className="grid grid-cols-4 gap-2">
+                  {ratios.map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => setAspectRatio(r.id)}
+                      className={clsx(
+                        "py-3 rounded-xl text-xs font-medium transition-all border",
+                        aspectRatio === r.id
+                          ? "bg-primary/20 border-primary text-primary"
+                          : "bg-surface/50 border-white/10 text-muted"
+                      )}
+                    >
+                      {r.id}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsOpen(false)}
+                className="w-full py-3 bg-primary text-black font-semibold rounded-xl"
+              >
+                完成 Done
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
 
 // ---------------- Sub Components ----------------
 
@@ -351,21 +453,21 @@ function ControlPanel({ aspectRatio, setAspectRatio, uploadedImage, setUploadedI
   const isGoogle = activeModel?.includes('imagen') || activeModel?.includes('veo');
 
   return (
-    <aside className="w-72 border-l border-border bg-surface/30 backdrop-blur-md p-6 flex flex-col gap-8 z-40 overflow-y-auto">
+    <aside className="hidden md:flex w-64 lg:w-72 border-l border-border bg-surface/30 backdrop-blur-md p-4 lg:p-6 flex-col gap-6 lg:gap-8 z-40 overflow-y-auto">
 
       {/* Mode Switcher */}
       <div className="flex bg-black/20 p-1 rounded-xl">
         <button
           onClick={() => setActiveMode('image')}
-          className={clsx("flex-1 py-2 rounded-lg text-sm font-medium transition-all", activeMode === 'image' ? "bg-white/10 text-white shadow-sm" : "text-muted hover:text-white")}
+          className={clsx("flex-1 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium transition-all", activeMode === 'image' ? "bg-white/10 text-white shadow-sm" : "text-muted hover:text-white")}
         >
-          Image
+          Image 图像
         </button>
         <button
           onClick={() => setActiveMode('video')}
-          className={clsx("flex-1 py-2 rounded-lg text-sm font-medium transition-all", activeMode === 'video' ? "bg-purple-500 text-white shadow-sm" : "text-muted hover:text-white")}
+          className={clsx("flex-1 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium transition-all", activeMode === 'video' ? "bg-purple-500 text-white shadow-sm" : "text-muted hover:text-white")}
         >
-          Video (Veo)
+          Video (Veo) 视频
         </button>
       </div>
 
