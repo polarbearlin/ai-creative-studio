@@ -317,41 +317,41 @@ async function generateWithGoogleImagen(res, prompt, aspectRatio, modelName, num
             // If imagen-4-fast strictly forbids image input for standard generation, we must use a different endpoint or config.
             // Let's try standard specific payload for editing.
         }
-    }
-        
+
+
         const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(predictionPayload)
-    });
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(predictionPayload)
+        });
 
-    const data = await response.json();
+        const data = await response.json();
 
-    if (data.error) {
-        throw new Error(data.error.message || JSON.stringify(data.error));
+        if (data.error) {
+            throw new Error(data.error.message || JSON.stringify(data.error));
+        }
+
+        if (!data.predictions || data.predictions.length === 0) {
+            throw new Error("No image data returned from Google API");
+        }
+
+        // Handle multiple images
+        let urls = data.predictions.map(pred => {
+            const base64 = pred.bytesBase64Encoded;
+            return `data:image/png;base64,${base64}`;
+        });
+
+        // 4K Upscaling Chain - DISABLED (Replicate Usage Stopped)
+        if (resolution === '4K') {
+            console.warn(`[Google] 4K requested but Replicate API is disabled. Returning native resolution.`);
+        }
+
+        res.json({ success: true, url: urls[0], urls: urls });
+
+    } catch (error) {
+        console.error('[Google] Generation Error:', error);
+        res.status(500).json({ error: error.message || 'Failed to generate with Google Imagen' });
     }
-
-    if (!data.predictions || data.predictions.length === 0) {
-        throw new Error("No image data returned from Google API");
-    }
-
-    // Handle multiple images
-    let urls = data.predictions.map(pred => {
-        const base64 = pred.bytesBase64Encoded;
-        return `data:image/png;base64,${base64}`;
-    });
-
-    // 4K Upscaling Chain - DISABLED (Replicate Usage Stopped)
-    if (resolution === '4K') {
-        console.warn(`[Google] 4K requested but Replicate API is disabled. Returning native resolution.`);
-    }
-
-    res.json({ success: true, url: urls[0], urls: urls });
-
-} catch (error) {
-    console.error('[Google] Generation Error:', error);
-    res.status(500).json({ error: error.message || 'Failed to generate with Google Imagen' });
-}
 }
 
 /**
