@@ -32,7 +32,7 @@ const replicate = new Replicate({
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 const fileManager = new GoogleAIFileManager(process.env.GOOGLE_API_KEY);
 const geminiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-const geminiProModel = genAI.getGenerativeModel({ model: "models/gemini-2.5-pro" }); // For Video Analysis
+const geminiProModel = genAI.getGenerativeModel({ model: "models/gemini-3-pro-preview" }); // For Video Analysis (Gemini 3)
 
 // Multer Setup
 const upload = multer({ dest: 'uploads/' });
