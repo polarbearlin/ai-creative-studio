@@ -38,14 +38,18 @@ function App() {
 
   /* Constants */
   const MODELS = [
-    { id: 'models/imagen-4.0-fast-generate-001', name: 'Google Imagen 4 Fast', desc: 'High speed, standard quality', badge: 'FAST' },
-    { id: 'models/imagen-4.0-ultra-generate-001', name: 'Google Imagen 4 Ultra', desc: 'Photorealistic, highest fidelity', badge: 'PRO' },
+    { id: 'models/imagen-4.0-fast-generate-001', name: 'Imagen 4 Fast', desc: '高速生成', badge: 'FAST' },
+    { id: 'models/imagen-4.0-generate-001', name: 'Imagen 4', desc: '标准质量', badge: 'STD' },
+    { id: 'models/imagen-4.0-ultra-generate-001', name: 'Imagen 4 Ultra', desc: '最高画质', badge: 'PRO' },
+    { id: 'models/nano-banana-pro-preview', name: 'Nano Banana Pro', desc: '实验性模型', badge: '🍌 NEW' },
   ];
 
   const VEO_MODELS = [
-    { id: 'models/veo-2.0-generate-001', name: 'Veo 2.0 (Stable)', desc: 'Standard generation', badge: 'STABLE' },
-    { id: 'models/veo-3.0-generate-001', name: 'Veo 3.0', desc: 'Next-gen motion realism', badge: 'NEW' },
-    { id: 'models/veo-3.0-fast-generate-001', name: 'Veo 3.0 Fast', desc: 'Faster generation speed', badge: 'TURBO' },
+    { id: 'models/veo-2.0-generate-001', name: 'Veo 2.0', desc: '稳定版', badge: 'STABLE' },
+    { id: 'models/veo-3.0-generate-001', name: 'Veo 3.0', desc: '动态逼真', badge: '' },
+    { id: 'models/veo-3.0-fast-generate-001', name: 'Veo 3.0 Fast', desc: '快速生成', badge: 'TURBO' },
+    { id: 'models/veo-3.1-generate-preview', name: 'Veo 3.1', desc: '最新旗舰', badge: '⭐ NEW' },
+    { id: 'models/veo-3.1-fast-generate-preview', name: 'Veo 3.1 Fast', desc: '快速旗舰', badge: '🚀' },
   ];
 
   /* Generation State */

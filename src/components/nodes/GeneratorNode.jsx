@@ -8,8 +8,12 @@ import axios from 'axios';
 // Models Definition (Reuse from App.jsx or create shared constant)
 const MODELS = [
     { id: 'models/imagen-4.0-fast-generate-001', name: 'Imagen 4 Fast', type: 'image' },
+    { id: 'models/imagen-4.0-generate-001', name: 'Imagen 4', type: 'image' },
     { id: 'models/imagen-4.0-ultra-generate-001', name: 'Imagen 4 Ultra', type: 'image' },
-    { id: 'models/veo-2.0-generate-001', name: 'Veo 2.0 (Video)', type: 'video' },
+    { id: 'models/nano-banana-pro-preview', name: '🍌 Nano Banana', type: 'image' },
+    { id: 'models/veo-2.0-generate-001', name: 'Veo 2.0', type: 'video' },
+    { id: 'models/veo-3.0-generate-001', name: 'Veo 3.0', type: 'video' },
+    { id: 'models/veo-3.1-generate-preview', name: 'Veo 3.1 ⭐', type: 'video' },
 ];
 
 export default function GeneratorNode({ id, data }) {
