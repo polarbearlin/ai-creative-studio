@@ -1021,12 +1021,15 @@ function VideoLabView({ setPrompt, setActiveTab }) {
   const [analyzing, setAnalyzing] = useState(false);
   const [scenes, setScenes] = useState([]);
   const [error, setError] = useState(null);
+  const [generatingScene, setGeneratingScene] = useState(null); // Track which scene is generating
+  const [generatedImages, setGeneratedImages] = useState({}); // Store generated images by scene index
 
   const handleFileChange = (e) => {
     if (e.target.files[0]) {
       setVideoFile(e.target.files[0]);
       setScenes([]);
       setError(null);
+      setGeneratedImages({});
     }
   };
 
@@ -1061,6 +1064,53 @@ function VideoLabView({ setPrompt, setActiveTab }) {
   const sendToCanvas = (text) => {
     setPrompt(text);
     setActiveTab('canvas');
+  };
+
+  // 新功能：生成单个场景的关键帧图片
+  const generateSceneImage = async (scene, idx) => {
+    setGeneratingScene(idx);
+    try {
+      const res = await axios.post(`${API_BASE_URL}/api/generate`, {
+        prompt: scene.img_prompt,
+        model: 'models/imagen-4.0-fast-generate-001',
+        aspectRatio: '16:9'
+      });
+      if (res.data.success) {
+        setGeneratedImages(prev => ({ ...prev, [idx]: res.data.url }));
+      }
+    } catch (err) {
+      console.error('Failed to generate scene image:', err);
+    } finally {
+      setGeneratingScene(null);
+    }
+  };
+
+  // 新功能：批量生成所有场景的关键帧
+  const batchGenerateKeyframes = async () => {
+    for (let i = 0; i < scenes.length; i++) {
+      if (!generatedImages[i]) {
+        await generateSceneImage(scenes[i], i);
+      }
+    }
+  };
+
+  // 新功能：下载分析结果为 JSON
+  const exportAsJSON = () => {
+    const data = {
+      fileName: videoFile?.name,
+      analyzedAt: new Date().toISOString(),
+      scenes: scenes.map((s, i) => ({
+        ...s,
+        generatedImage: generatedImages[i] || null
+      }))
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `video-analysis-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -1125,56 +1175,94 @@ function VideoLabView({ setPrompt, setActiveTab }) {
 
       {/* Timeline View */}
       {scenes.length > 0 && (
-        <div className="space-y-12 pl-4">
-          {scenes.map((scene, idx) => (
-            <div key={idx} className="relative pl-12 border-l-2 border-border last:border-0 hover:border-primary/50 transition-colors">
-              {/* Timeline Node */}
-              <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-surface border-2 border-primary shadow-[0_0_10px_rgba(59,130,246,0.5)] z-10" />
+        <>
+          {/* Toolbar */}
+          <div className="flex flex-wrap gap-3 p-4 bg-surface/50 rounded-2xl border border-border">
+            <button
+              onClick={batchGenerateKeyframes}
+              disabled={generatingScene !== null}
+              className="px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-xl font-medium hover:scale-105 transition-transform disabled:opacity-50 flex items-center gap-2"
+            >
+              <Sparkles size={16} />
+              批量生成关键帧
+            </button>
+            <button
+              onClick={exportAsJSON}
+              className="px-4 py-2 bg-surface border border-border text-foreground rounded-xl font-medium hover:bg-white/5 transition-colors flex items-center gap-2"
+            >
+              <Download size={16} />
+              导出 JSON
+            </button>
+            <span className="ml-auto text-sm text-muted self-center">
+              已分析 {scenes.length} 个场景 · 已生成 {Object.keys(generatedImages).length} 张图片
+            </span>
+          </div>
 
-              <div className="flex flex-col gap-6">
-                {/* Scene Header */}
-                <div className="flex items-baseline gap-4">
-                  <span className="text-2xl font-mono font-bold text-primary">{scene.time}</span>
-                  <h3 className="text-xl font-light text-foreground">{scene.description.split('.')[0]}...</h3>
-                </div>
+          <div className="space-y-12 pl-4">
+            {scenes.map((scene, idx) => (
+              <div key={idx} className="relative pl-12 border-l-2 border-border last:border-0 hover:border-primary/50 transition-colors">
+                {/* Timeline Node */}
+                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-surface border-2 border-primary shadow-[0_0_10px_rgba(59,130,246,0.5)] z-10" />
 
-                {/* Full Description & Cards */}
-                <div className="grid lg:grid-cols-2 gap-6">
-                  {/* Image Prompt Card */}
-                  <div className="p-0 rounded-2xl bg-surface border border-border overflow-hidden group hover:border-purple-500/50 transition-all shadow-sm hover:shadow-md">
-                    <div className="p-4 border-b border-border bg-black/5 dark:bg-white/5 flex justify-between items-center">
-                      <div className="flex items-center gap-2 text-purple-600 dark:text-purple-300">
-                        <ImageIcon size={16} />
-                        <span className="text-xs font-bold uppercase tracking-wider">Flux/Imagen Prompt</span>
-                      </div>
-                      <div className="flex gap-1">
-                        <button onClick={() => sendToCanvas(scene.img_prompt)} className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg text-muted hover:text-foreground transition-colors" title="Send to Canvas"><ArrowRight size={16} /></button>
-                        <button onClick={() => copyToClipboard(scene.img_prompt)} className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg text-muted hover:text-foreground transition-colors"><Copy size={16} /></button>
-                      </div>
-                    </div>
-                    <div className="p-5">
-                      <p className="text-sm text-foreground/80 leading-relaxed font-light">{scene.img_prompt}</p>
-                    </div>
+                <div className="flex flex-col gap-6">
+                  {/* Scene Header */}
+                  <div className="flex items-baseline gap-4">
+                    <span className="text-2xl font-mono font-bold text-primary">{scene.time}</span>
+                    <h3 className="text-xl font-light text-foreground">{scene.description.split('.')[0]}...</h3>
                   </div>
 
-                  {/* Video Prompt Card */}
-                  <div className="p-0 rounded-2xl bg-surface border border-border overflow-hidden group hover:border-orange-500/50 transition-all shadow-sm hover:shadow-md">
-                    <div className="p-4 border-b border-border bg-black/5 dark:bg-white/5 flex justify-between items-center">
-                      <div className="flex items-center gap-2 text-orange-600 dark:text-orange-300">
-                        <Film size={16} />
-                        <span className="text-xs font-bold uppercase tracking-wider">Sora/Veo Prompt</span>
+                  {/* Full Description & Cards */}
+                  <div className="grid lg:grid-cols-2 gap-6">
+                    {/* Image Prompt Card */}
+                    <div className="p-0 rounded-2xl bg-surface border border-border overflow-hidden group hover:border-purple-500/50 transition-all shadow-sm hover:shadow-md">
+                      <div className="p-4 border-b border-border bg-black/5 dark:bg-white/5 flex justify-between items-center">
+                        <div className="flex items-center gap-2 text-purple-600 dark:text-purple-300">
+                          <ImageIcon size={16} />
+                          <span className="text-xs font-bold uppercase tracking-wider">Flux/Imagen Prompt</span>
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => generateSceneImage(scene, idx)}
+                            disabled={generatingScene === idx}
+                            className="p-2 hover:bg-purple-500/20 rounded-lg text-purple-500 hover:text-purple-400 transition-colors disabled:opacity-50"
+                            title="生成关键帧"
+                          >
+                            {generatingScene === idx ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                          </button>
+                          <button onClick={() => sendToCanvas(scene.img_prompt)} className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg text-muted hover:text-foreground transition-colors" title="Send to Canvas"><ArrowRight size={16} /></button>
+                          <button onClick={() => copyToClipboard(scene.img_prompt)} className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg text-muted hover:text-foreground transition-colors"><Copy size={16} /></button>
+                        </div>
                       </div>
-                      <button onClick={() => copyToClipboard(scene.video_prompt)} className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg text-muted hover:text-foreground transition-colors"><Copy size={16} /></button>
+                      {/* Generated Image Preview */}
+                      {generatedImages[idx] && (
+                        <div className="p-2 border-b border-border">
+                          <img src={generatedImages[idx]} alt={`Scene ${idx + 1}`} className="w-full h-32 object-cover rounded-lg" />
+                        </div>
+                      )}
+                      <div className="p-5">
+                        <p className="text-sm text-foreground/80 leading-relaxed font-light">{scene.img_prompt}</p>
+                      </div>
                     </div>
-                    <div className="p-5">
-                      <p className="text-sm text-foreground/80 leading-relaxed font-light">{scene.video_prompt}</p>
+
+                    {/* Video Prompt Card */}
+                    <div className="p-0 rounded-2xl bg-surface border border-border overflow-hidden group hover:border-orange-500/50 transition-all shadow-sm hover:shadow-md">
+                      <div className="p-4 border-b border-border bg-black/5 dark:bg-white/5 flex justify-between items-center">
+                        <div className="flex items-center gap-2 text-orange-600 dark:text-orange-300">
+                          <Film size={16} />
+                          <span className="text-xs font-bold uppercase tracking-wider">Sora/Veo Prompt</span>
+                        </div>
+                        <button onClick={() => copyToClipboard(scene.video_prompt)} className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg text-muted hover:text-foreground transition-colors"><Copy size={16} /></button>
+                      </div>
+                      <div className="p-5">
+                        <p className="text-sm text-foreground/80 leading-relaxed font-light">{scene.video_prompt}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   )
