@@ -264,6 +264,27 @@ app.post('/api/enhance-prompt', async (req, res) => {
 });
 
 
+// Helper: Fetch with Retry
+async function fetchWithRetry(url, options, retries = 3, delay = 1000) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const res = await fetch(url, options);
+
+            // If 503 (Service Unavailable) or 429 (Too Many Requests), throw to retry
+            if (res.status === 503 || res.status === 429) {
+                throw new Error(`API Busy (Status ${res.status})`);
+            }
+
+            return res;
+        } catch (err) {
+            console.warn(`[Google] Attempt ${i + 1} failed: ${err.message}. Retrying in ${delay}ms...`);
+            if (i === retries - 1) throw err; // Throw on last attempt
+            await new Promise(r => setTimeout(r, delay));
+            delay *= 2; // Exponential backoff
+        }
+    }
+}
+
 // Helper Function for Google Imagen
 async function generateWithGoogleImagen(res, prompt, aspectRatio, modelName, numOutputs = 1, resolution = '1K', imageInput = null) {
     console.log(`[Google] Generating ${numOutputs} image(s) with ${modelName} at ${resolution}...`);
